@@ -1,0 +1,26 @@
+# ArgoCD Application — financial-dispute-agent EKS overlay
+# Pointe vers le dossier eks/ qui contient le kustomization.yaml EKS.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: financial-dispute-agent-eks
+  namespace: argocd
+  labels:
+    app.kubernetes.io/managed-by: argocd
+    argocd.argoproj.io/project: aipaas-eks
+spec:
+  project: aipaas-eks
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: financial-dispute-agent
+  source:
+    repoURL: https://github.com/lionelmarcus10/aipaas.git
+    path: apps/financial-dispute-agent/eks
+    targetRevision: master
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - CreateNamespace=true

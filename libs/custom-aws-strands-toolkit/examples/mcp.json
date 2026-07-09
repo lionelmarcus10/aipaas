@@ -1,0 +1,11 @@
+{
+  "brightdata": {
+    "url": "https://mcp.brightdata.com/mcp?token=YOUR_TOKEN",
+    "transport": "streamable_http"
+  },
+  "local-filesystem": {
+    "command": "npx",
+    "args": ["@modelcontextprotocol/server-filesystem", "/tmp"],
+    "transport": "stdio"
+  }
+}

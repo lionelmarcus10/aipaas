@@ -1,0 +1,5 @@
+# Kustomize overlay — EKS (EFS, pas de NFS server)
+# Sur EKS: EFS fournit du RWX natif, pas besoin de pod NFS server.
+# On remplace complètement les ressources par un StorageClass EFS + PVC RWX.
+resources:
+  - efs-storage.yaml

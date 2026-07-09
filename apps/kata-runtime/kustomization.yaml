@@ -1,0 +1,7 @@
+# Kustomize base — Kata Containers runtime (EKS)
+# Désactivé par défaut. Le DaemonSet a un nodeSelector sur runtime=kata
+# qui n'existe sur aucun node par défaut → 0 pods.
+# Pour activer: label un node group avec runtime=kata dans 005_aws_eks.
+resources:
+  - runtimeclass.yaml
+  - daemonset.yaml

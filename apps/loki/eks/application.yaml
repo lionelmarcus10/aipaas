@@ -1,0 +1,24 @@
+# ArgoCD Application — Loki EKS overlay (gp3 storage)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki-eks
+  namespace: argocd
+  labels:
+    app.kubernetes.io/managed-by: argocd
+    argocd.argoproj.io/project: aipaas-eks
+spec:
+  project: aipaas-eks
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  source:
+    repoURL: https://github.com/lionelmarcus10/aipaas.git
+    path: apps/loki/eks
+    targetRevision: master
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

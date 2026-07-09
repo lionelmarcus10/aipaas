@@ -1,0 +1,13 @@
+{{ template "base" . }}
+
+# --- gVisor (runsc) runtime ---
+# Adds runsc as an additional containerd runtime so pods with
+# runtimeClassName: gvisor run under gVisor's userspace kernel.
+#
+# Both v2 and v3 plugin paths are included — containerd ignores
+# unknown plugin paths, so this works across k3s versions.
+[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runsc]
+  runtime_type = "io.containerd.runsc.v1"
+
+[plugins."io.containerd.cri.v1.runtime".containerd.runtimes.runsc]
+  runtime_type = "io.containerd.runsc.v1"

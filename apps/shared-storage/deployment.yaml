@@ -1,0 +1,106 @@
+# NFS Server — shared read-only storage for DuckDB
+#
+# Provides a single copy of the DuckDB database that all agent pods can
+# mount read-only via NFS (ReadWriteMany access mode).
+#
+# Architecture:
+#   NFS server pod (1 replica)
+#     └── PVC (local-path, 1Gi) — persistent on the k3d node
+#     └── Exports /export via NFS
+#
+#   Agent pods (N replicas)
+#     └── initContainer: runs setup_db.py → writes /data/financial_dispute.duckdb
+#     └── container: mounts NFS read-only on /app/data
+#
+# On EKS: replace this with EFS (RWX natif, no NFS server needed).
+# See apps/nfs-server/README.md for the EKS migration path.
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-data
+  namespace: aipaas
+spec:
+  accessModes:
+    - ReadWriteOnce          # Only the NFS server pod writes
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nfs-server
+  namespace: aipaas
+  labels:
+    app: nfs-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nfs-server
+  template:
+    metadata:
+      labels:
+        app: nfs-server
+    spec:
+      # NFS server must run as root to bind port 2049
+      securityContext:
+        runAsNonRoot: false
+        runAsUser: 0
+      containers:
+        - name: nfs-server
+          image: itsthenetwork/nfs-server-alpine:latest
+          ports:
+            - name: nfs
+              containerPort: 2049
+              protocol: TCP
+            - name: mountd
+              containerPort: 20048
+              protocol: TCP
+            - name: rpcbind
+              containerPort: 111
+              protocol: TCP
+          env:
+            - name: SHARED_DIRECTORY
+              value: /export
+            - name: EXPORT_DIR
+              value: /export
+          volumeMounts:
+            - name: nfs-data
+              mountPath: /export
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+      volumes:
+        - name: nfs-data
+          persistentVolumeClaim:
+            claimName: nfs-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nfs-server
+  namespace: aipaas
+spec:
+  type: ClusterIP
+  # Fixed clusterIP so the kubelet can mount NFS by IP (k3d kubelet
+  # cannot resolve Kubernetes DNS names for NFS mounts).
+  clusterIP: 10.43.17.226
+  ports:
+    - name: nfs
+      port: 2049
+      targetPort: nfs
+    - name: mountd
+      port: 20048
+      targetPort: mountd
+    - name: rpcbind
+      port: 111
+      targetPort: rpcbind
+  selector:
+    app: nfs-server

@@ -1,0 +1,114 @@
+# DaemonSet — gVisor (runsc) runtime installer (EKS)
+#
+# Télécharge et installe gVisor sur les nodes EKS.
+# Contrairement à Kata, gVisor n'est PAS préinstallé dans l'AMI EKS.
+# Ce DaemonSet:
+#   1. Télécharge runsc + containerd-shim-runsc-v1 depuis Google Cloud Storage
+#   2. Les installe dans /usr/local/bin/ du node (hostPath)
+#   3. Ajoute le runtime runsc dans config.toml de containerd
+#   4. Redémarre containerd via nsenter
+#
+# DÉSACTIVÉ PAR DÉFAUT:
+#   Le nodeSelector runtime=gvisor ne match aucun node par défaut.
+#   Pour activer, ajouter le label runtime=gvisor sur un node group EKS:
+#     labels = { runtime = "gvisor" }
+#   dans 005_aws_eks/terragrunt.hcl
+#
+# Sécurité:
+#   - hostPID: true → accès au PID 1 du node (nsenter pour restart containerd)
+#   - privileged: true → écriture sur hostPath + wget
+#   - Ces privilèges sont nécessaires et limités à kube-system
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: gvisor-runtime-installer
+  namespace: kube-system
+  labels:
+    app: gvisor-runtime-installer
+spec:
+  selector:
+    matchLabels:
+      app: gvisor-runtime-installer
+  template:
+    metadata:
+      labels:
+        app: gvisor-runtime-installer
+    spec:
+      hostPID: true
+      nodeSelector:
+        # Désactivé par défaut — aucun node n'a ce label
+        # Pour activer: label le node group avec runtime=gvisor
+        runtime: gvisor
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: installer
+          image: alpine:3.19
+          securityContext:
+            privileged: true
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -ex
+              GVISOR_URL="https://storage.googleapis.com/gvisor/releases/latest/x86_64"
+
+              echo "[gvisor-installer] Installing gVisor on node..."
+
+              # Télécharger runsc si pas déjà installé
+              if [ ! -f /host/usr/local/bin/runsc ]; then
+                echo "[gvisor-installer] Downloading runsc..."
+                wget -q -O /host/usr/local/bin/runsc "${GVISOR_URL}/runsc"
+                chmod +x /host/usr/local/bin/runsc
+                echo "[gvisor-installer] runsc installed: $(/host/usr/local/bin/runsc --version 2>&1 || echo 'version unknown')"
+              else
+                echo "[gvisor-installer] runsc already installed."
+              fi
+
+              # Télécharger le shim si pas déjà installé
+              if [ ! -f /host/usr/local/bin/containerd-shim-runsc-v1 ]; then
+                echo "[gvisor-installer] Downloading containerd-shim-runsc-v1..."
+                wget -q -O /host/usr/local/bin/containerd-shim-runsc-v1 "${GVISOR_URL}/containerd-shim-runsc-v1"
+                chmod +x /host/usr/local/bin/containerd-shim-runsc-v1
+                echo "[gvisor-installer] shim installed."
+              else
+                echo "[gvisor-installer] shim already installed."
+              fi
+
+              # Ajouter le runtime runsc dans containerd si pas déjà fait
+              if ! grep -q "io.containerd.runsc.v1" /host/etc/containerd/config.toml; then
+                echo "[gvisor-installer] Adding runsc runtime to containerd config..."
+                cat >> /host/etc/containerd/config.toml << 'EOF'
+
+              # --- gVisor (runsc) runtime ---
+              [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runsc]
+                runtime_type = "io.containerd.runsc.v1"
+
+              [plugins."io.containerd.cri.v1.runtime".containerd.runtimes.runsc]
+                runtime_type = "io.containerd.runsc.v1"
+              EOF
+                echo "[gvisor-installer] Restarting containerd..."
+                nsenter -t 1 -m -u -i -n -- systemctl restart containerd
+                echo "[gvisor-installer] containerd restarted."
+              else
+                echo "[gvisor-installer] runsc runtime already configured. Skipping."
+              fi
+
+              echo "[gvisor-installer] Done. Keeping pod alive for re-audit."
+              sleep infinity
+          volumeMounts:
+            - name: host-bin
+              mountPath: /host/usr/local/bin
+            - name: host-containerd
+              mountPath: /host/etc/containerd
+      volumes:
+        - name: host-bin
+          hostPath:
+            path: /usr/local/bin
+            type: DirectoryOrCreate
+        - name: host-containerd
+          hostPath:
+            path: /etc/containerd
+            type: Directory

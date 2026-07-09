@@ -1,0 +1,6 @@
+# Kustomize overlay — EKS (gp3 storage)
+resources:
+  - ../deployment.yaml
+
+patches:
+  - path: patch.yaml

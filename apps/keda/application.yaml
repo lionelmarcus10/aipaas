@@ -1,0 +1,49 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: keda
+  namespace: argocd
+  labels:
+    app.kubernetes.io/managed-by: argocd
+    argocd.argoproj.io/project: aipaas
+spec:
+  project: aipaas
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: keda-system
+  source:
+    repoURL: https://kedacore.github.io/charts
+    chart: keda
+    targetRevision: 2.20.1
+    helm:
+      values: |
+        watchNamespace: ""
+        operator:
+          replicaCount: 1
+          logLevel: debug
+          resources:
+            limits:
+              cpu: 500m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+        metricsServer:
+          enabled: true
+          replicaCount: 1
+        webhooks:
+          enabled: true
+          replicaCount: 1
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        maxDuration: 2m
+        factor: 2

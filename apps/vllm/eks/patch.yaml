@@ -1,0 +1,41 @@
+# Patch EKS pour vLLM — GPU mode
+# Strategic merge patch: seulement les champs qui changent par rapport à la base k3d.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm
+  namespace: aipaas
+spec:
+  template:
+    spec:
+      nodeSelector:
+        role: gpu
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:latest
+          # Sur EKS GPU, on remplace les env vars CPU par les vars GPU
+          env:
+            - name: HF_HOME
+              value: /root/.cache/huggingface
+          # Modèle plus gros sur GPU (7B au lieu de 0.5B)
+          command:
+            - vllm
+            - serve
+            - Qwen/Qwen2.5-7B-Instruct
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8000"
+            - --max-model-len
+            - "8192"
+            - --max-num-seqs
+            - "4"
+            - --gpu-memory-utilization
+            - "0.9"
+          resources:
+            requests:
+              cpu: 2000m
+              memory: 8Gi
+            limits:
+              nvidia.com/gpu: 1
+              memory: 16Gi

@@ -1,0 +1,64 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: opencost
+  namespace: argocd
+  labels:
+    app.kubernetes.io/managed-by: argocd
+    argocd.argoproj.io/project: aipaas
+spec:
+  project: aipaas
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: opencost
+  source:
+    repoURL: https://opencost.github.io/opencost-helm-chart
+    chart: opencost
+    targetRevision: 2.5.28
+    helm:
+      values: |
+        opencost:
+          exporter:
+            defaultClusterName: aipaas-k3d
+            replicas: 1
+            resources:
+              limits:
+                cpu: 500m
+                memory: 512Mi
+              requests:
+                cpu: 100m
+                memory: 256Mi
+          cloudProvider: ""
+          customPricing:
+            enabled: true
+            configPath: /var/configs
+            config:
+              provider: custom
+              description: Custom Pricing for k3d
+              CPU: "0.02"
+              RAM: "0.01"
+              storage: "0.01"
+              spotCPU: "0.005"
+              spotRAM: "0.005"
+              GPU: "0.95"
+          prometheus:
+            internal:
+              enabled: true
+              serviceName: prometheus-server
+              namespaceName: observability
+              port: 80
+          ui:
+            enabled: true
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        maxDuration: 2m
+        factor: 2

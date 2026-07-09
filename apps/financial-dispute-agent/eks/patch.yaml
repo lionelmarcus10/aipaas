@@ -1,0 +1,69 @@
+# Patch EKS pour financial-dispute-agent
+# Strategic merge patch: seulement les champs qui changent par rapport à la base k3d.
+---
+# 1. Deployment — image ECR, pas de gVisor, RAG S3 Vectors, LLM Bedrock
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: financial-dispute-agent
+  namespace: financial-dispute-agent
+spec:
+  template:
+    spec:
+      # Retire gVisor (non disponible par défaut sur EKS)
+      runtimeClassName: null
+      initContainers:
+        - name: setup-db
+          # ECR au lieu de k3d local registry
+          image: 123456789012.dkr.ecr.eu-west-3.amazonaws.com/financial-dispute-agent:latest
+          env:
+            - name: DB_LOCAL_PATH
+              value: "/data/financial_dispute.duckdb"
+            # S3 Vectors au lieu de FAISS (pas besoin de build_index local)
+            - name: RAG_PROVIDER
+              value: "s3vectors"
+            - name: RAG_EMBEDDING_PROVIDER
+              value: "bedrock"
+            - name: VECTOR_BUCKET_NAME
+              value: "aipaas-rag-vectors"
+            - name: VECTOR_INDEX_NAME
+              value: "contract-chunks"
+            - name: HF_HOME
+              value: "/tmp/hf_cache"
+            - name: TRANSFORMERS_CACHE
+              value: "/tmp/hf_cache"
+      containers:
+        - name: orchestrator
+          image: 123456789012.dkr.ecr.eu-west-3.amazonaws.com/financial-dispute-agent:latest
+          env:
+            # LLM: Bedrock au lieu de vLLM local
+            - name: LLM_PROVIDER
+              value: "bedrock"
+            - name: AWS_BEDROCK_REGION
+              value: "eu-west-3"
+            - name: BEDROCK_MODEL_ID
+              value: "global.anthropic.claude-sonnet-4-6"
+            # RAG: S3 Vectors au lieu de FAISS
+            - name: RAG_PROVIDER
+              value: "s3vectors"
+            - name: RAG_EMBEDDING_PROVIDER
+              value: "bedrock"
+            - name: VECTOR_BUCKET_NAME
+              value: "aipaas-rag-vectors"
+            - name: VECTOR_INDEX_NAME
+              value: "contract-chunks"
+            - name: DB_LOCAL_PATH
+              value: "/app/data/financial_dispute.duckdb"
+            - name: HF_HOME
+              value: "/tmp/hf_cache"
+            - name: TRANSFORMERS_CACHE
+              value: "/tmp/hf_cache"
+---
+# 2. PVC — gp3 (EBS) au lieu de local-path, ReadWriteOnce
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: duckdb-pvc
+  namespace: financial-dispute-agent
+spec:
+  storageClassName: gp3

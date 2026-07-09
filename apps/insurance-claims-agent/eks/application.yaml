@@ -1,0 +1,25 @@
+# ArgoCD Application — insurance-claims-agent EKS overlay
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: insurance-claims-agent-eks
+  namespace: argocd
+  labels:
+    app.kubernetes.io/managed-by: argocd
+    argocd.argoproj.io/project: aipaas-eks
+spec:
+  project: aipaas-eks
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: insurance-claims-agent
+  source:
+    repoURL: https://github.com/lionelmarcus10/aipaas.git
+    path: apps/insurance-claims-agent/eks
+    targetRevision: master
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - CreateNamespace=true

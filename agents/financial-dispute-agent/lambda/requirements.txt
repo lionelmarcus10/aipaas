@@ -1,0 +1,13 @@
+# Lambda dependencies for the Financial Dispute Resolution Agent.
+#
+# These are installed by the terraform-aws-modules/lambda/aws module at build
+# time (create_package = true) or by the build script (scripts/build-lambda-packages.sh).
+#
+# Note: cast is a local package (libs/custom-aws-strands-toolkit). The build script
+# copies it into the ZIP. In production, it would be published to a private
+# PyPI registry or packaged as a Lambda layer.
+
+strands-agents[ollama,openai]>=1.53.0
+strands-agents-tools>=0.8.1
+pydantic>=2.0.0
+duckdb>=1.0.0

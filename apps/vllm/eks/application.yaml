@@ -1,0 +1,26 @@
+# ArgoCD Application — vLLM EKS overlay (GPU)
+# Pointe vers le dossier eks/ qui contient le kustomization.yaml EKS.
+# Ce fichier est découvert par le parent App-of-Apps EKS (008_aws_argocd_config).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vllm-eks
+  namespace: argocd
+  labels:
+    app.kubernetes.io/managed-by: argocd
+    argocd.argoproj.io/project: aipaas-eks
+spec:
+  project: aipaas-eks
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: aipaas
+  source:
+    repoURL: https://github.com/lionelmarcus10/aipaas.git
+    path: apps/vllm/eks
+    targetRevision: master
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

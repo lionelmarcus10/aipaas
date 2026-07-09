@@ -1,0 +1,82 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: langfuse
+  namespace: argocd
+  labels:
+    app.kubernetes.io/managed-by: argocd
+    argocd.argoproj.io/project: aipaas
+spec:
+  project: aipaas
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  source:
+    repoURL: https://langfuse.github.io/langfuse-k8s
+    chart: langfuse
+    targetRevision: 1.5.40
+    helm:
+      values: |
+        langfuse:
+          replicas: 1
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          salt:
+            value: "aipaas-langfuse-dev-salt-change-me"
+          nextauth:
+            url: http://localhost:3000
+            secret:
+              value: "aipaas-langfuse-dev-secret-change-me"
+          encryptionKey:
+            value: "3fd0ee5378841cc1c1012cc9b125fa935b737d9b0be1a3062e46bdc6b7a5ebdb"
+        postgresql:
+          deploy: false
+          host: langfuse-postgresql
+          auth:
+            password: "aipaas-langfuse-pg-dev"
+          primary:
+            persistence:
+              size: 2Gi
+        redis:
+          deploy: false
+          host: langfuse-redis
+        clickhouse:
+          deploy: false
+          host: langfuse-clickhouse
+          auth:
+            password: "aipaas-langfuse-ch-dev"
+        s3:
+          deploy: false
+          replicas: 1
+          eventUpload:
+            bucket: langfuse-events
+          batchExport:
+            bucket: langfuse-batch-exports
+          mediaUpload:
+            bucket: langfuse-media
+          region: us-east-1
+          accessKey:
+            value: "minio-admin"
+          secretKey:
+            value: "minio-admin"
+        service:
+          type: ClusterIP
+          port: 80
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        maxDuration: 2m
+        factor: 2

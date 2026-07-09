@@ -1,0 +1,33 @@
+# EFS StorageClass + PVC pour EKS
+# Remplace le NFS server k3d par EFS (Elastic File System) — RWX natif AWS.
+#
+# Prérequis:
+# 1. Créer un système de fichiers EFS dans le VPC (via Terraform ou console)
+# 2. Installer le driver aws-efs-csi-driver:
+#      helm install aws-efs-csi-driver aws-efs-csi-driver/aws-efs-csi-driver -n kube-system
+# 3. Renseigner l'ID du système de fichiers EFS ci-dessous (fileSystemId)
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: efs-sc
+provisioner: efs.csi.aws.com
+parameters:
+  provisioningMode: efs-ap
+  fileSystemId: fs-xxxxxxxxxxxxx     # ← REMPLACER par l'ID EFS réel
+  directoryPerms: "700"
+mountOptions:
+  - iam
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: duckdb-shared-efs
+  namespace: financial-dispute-agent
+spec:
+  accessModes:
+    - ReadWriteMany                 # EFS = RWX natif (multi-pod)
+  storageClassName: efs-sc
+  resources:
+    requests:
+      storage: 5Gi                  # EFS est élastique, cette valeur est indicative

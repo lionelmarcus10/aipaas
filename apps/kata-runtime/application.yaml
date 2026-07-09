@@ -1,0 +1,27 @@
+# ArgoCD Application — Kata Containers runtime (EKS)
+# Désactivé par défaut (replicas: 0 sur le DaemonSet via nodeSelector inactif).
+# Pour activer: mettre enable_kata: "true" dans le ConfigMap ci-dessous
+# ET ajouter le label runtime=kata sur un node group EKS.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kata-runtime
+  namespace: argocd
+  labels:
+    app.kubernetes.io/managed-by: argocd
+    argocd.argoproj.io/project: aipaas
+spec:
+  project: aipaas
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  source:
+    repoURL: https://github.com/lionelmarcus10/aipaas.git
+    path: apps/kata-runtime
+    targetRevision: master
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

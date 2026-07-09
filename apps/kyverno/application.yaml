@@ -1,0 +1,60 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kyverno
+  namespace: argocd
+  labels:
+    app.kubernetes.io/managed-by: argocd
+    argocd.argoproj.io/project: aipaas
+spec:
+  project: aipaas
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kyverno-system
+  source:
+    repoURL: https://github.com/kyverno/kyverno
+    path: charts/kyverno
+    targetRevision: 3.3.4   # pinned — check for newer stable before prod
+    helm:
+      releaseName: kyverno
+      values: |
+        # --- Admission controller ---
+        admissionController:
+          replicas: 3
+          # Fail closed in prod (block if Kyverno is down).
+          # In dev, fail open to avoid locking yourself out of the cluster.
+          failurePolicy: Fail
+
+        # --- Background scanning (re-audit existing resources) ---
+        backgroundController:
+          enabled: true
+          replicas: 2
+
+        # --- Reports (audit results visible via kubectl) ---
+        reportsController:
+          enabled: true
+
+        # --- Cleanup of old report resources ---
+        cleanupController:
+          enabled: true
+
+        # Resource limits — keep Kyverno lightweight in dev
+        resources:
+          limits:
+            memory: 384Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        maxDuration: 2m
+        factor: 2

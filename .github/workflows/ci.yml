@@ -1,0 +1,107 @@
+---
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  # ──────────────────────────────────────────────────────────────
+  # Job 1 : Terraform validate + fmt check sur tous les modules
+  # ──────────────────────────────────────────────────────────────
+  terraform-checks:
+    name: Terraform validate & fmt
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~> 1.9"
+
+      # Valide chaque module indépendamment
+      - name: terraform fmt (check only)
+        working-directory: infra/module
+        run: |
+          exit_code=0
+          for mod in */; do
+            echo "::group::fmt check: $mod"
+            terraform -chdir="$mod" fmt -check -recursive
+            fmt_status=$?
+            if [ $fmt_status -ne 0 ]; then
+              echo "::error file=infra/module/${mod}::terraform fmt failed in $mod"
+              exit_code=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $exit_code
+
+      - name: terraform init + validate (each module)
+        working-directory: infra/module
+        run: |
+          exit_code=0
+          for mod in */; do
+            echo "::group::validate: $mod"
+            terraform -chdir="$mod" init -backend=false -upgrade
+            if terraform -chdir="$mod" validate; then
+              echo "OK: $mod"
+            else
+              echo "::error file=infra/module/${mod}::terraform validate failed in $mod"
+              exit_code=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $exit_code
+
+  # ──────────────────────────────────────────────────────────────
+  # Job 2 : kubeconform sur tous les manifests Kubernetes
+  # ──────────────────────────────────────────────────────────────
+  kubeconform:
+    name: Kubeconform manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kubeconform
+        run: |
+          curl -sLo kubeconform.tar.gz \
+            https://github.com/yannh/kubeconform/releases/download/v0.6.4/kubeconform-linux-amd64.tar.gz
+          tar xzf kubeconform.tar.gz
+          sudo mv kubeconform /usr/local/bin/
+          kubeconform --version
+
+      - name: Validate all Kubernetes manifests
+        run: |
+          set -e
+          # Collecte tous les .yaml/.yml sous apps/ (manifests bruts)
+          find apps -type f \( -name "*.yaml" -o -name "*.yml" \) \
+            ! -name "values.reference.yaml" \
+            ! -name "README.md" \
+            -print0 | xargs -0 kubeconform \
+            -strict \
+            -ignore-missing-schemas \
+            -kubernetes-version 1.31.0 \
+            -summary
+
+  # ──────────────────────────────────────────────────────────────
+  # Job 3 : yamllint sur tout le repo
+  # ──────────────────────────────────────────────────────────────
+  yamllint:
+    name: Yamllint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install yamllint
+        run: pip install yamllint==1.35.1
+
+      - name: Run yamllint
+        run: |
+          yamllint -d "{extends: default, rules: {line-length: disable, document-start: disable, truthy: {check-keys: false}}}" \
+            apps/ infra/

@@ -1,0 +1,8 @@
+# Patch EKS pour Grafana — gp3 (EBS) au lieu de local-path
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-data
+  namespace: monitoring
+spec:
+  storageClassName: gp3

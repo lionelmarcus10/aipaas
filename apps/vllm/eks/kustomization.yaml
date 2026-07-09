@@ -1,0 +1,11 @@
+# Kustomize overlay — EKS (GPU mode)
+# Hérite de la base k3d et patch les champs spécifiques EKS:
+# - image GPU au lieu de CPU
+# - resources: nvidia.com/gpu au lieu de CPU
+# - nodeSelector: role=gpu (node group GPU dans 005_aws_eks)
+# - storageClassName: gp3 (EBS) au lieu de local-path
+resources:
+  - ../deployment.yaml
+
+patches:
+  - path: patch.yaml

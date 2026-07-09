@@ -1,0 +1,3 @@
+# Kustomize base — k3d (local-path storage)
+resources:
+  - deployment.yaml

@@ -1,0 +1,7 @@
+# Kustomize base — gVisor runtime (EKS)
+# Désactivé par défaut. Le DaemonSet a un nodeSelector sur runtime=gvisor
+# qui n'existe sur aucun node par défaut → 0 pods.
+# Pour activer: label un node group avec runtime=gvisor dans 005_aws_eks.
+resources:
+  - runtimeclass.yaml
+  - daemonset.yaml

@@ -1,0 +1,5 @@
+# Kustomize base — k3d (CPU mode)
+# ArgoCD lit ce fichier et applique deployment.yaml tel quel.
+# Pour EKS: pointer ArgoCD vers apps/vllm/eks/ (patch GPU)
+resources:
+  - deployment.yaml

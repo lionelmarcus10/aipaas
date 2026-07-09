@@ -1,0 +1,5 @@
+# Kustomize base — k3d (NFS server + local-path)
+# Sur k3d: un pod NFS server fournit du stockage RWX (ReadWriteMany)
+# car local-path ne supporte que RWO.
+resources:
+  - deployment.yaml

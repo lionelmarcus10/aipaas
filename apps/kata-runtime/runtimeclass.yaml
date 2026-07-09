@@ -1,0 +1,12 @@
+# RuntimeClass — Kata Containers
+# Kata lance une VM légère (QEMU/Firecracker) par pod.
+# Isolation VM complète — plus fort que gVisor (syscall filter).
+#
+# Prérequis: les binaires kata doivent être présents sur les nodes.
+# Sur EKS AL2023, kata est préinstallé dans l'AMI.
+# Le DaemonSet ci-dessous active le runtime dans containerd.
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: kata
+handler: kata

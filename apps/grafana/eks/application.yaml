@@ -1,0 +1,24 @@
+# ArgoCD Application — Grafana EKS overlay (gp3 storage)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana-eks
+  namespace: argocd
+  labels:
+    app.kubernetes.io/managed-by: argocd
+    argocd.argoproj.io/project: aipaas-eks
+spec:
+  project: aipaas-eks
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  source:
+    repoURL: https://github.com/lionelmarcus10/aipaas.git
+    path: apps/grafana/eks
+    targetRevision: master
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,97 @@
+# DaemonSet — Kata Containers runtime installer (EKS)
+#
+# Active le runtime kata dans containerd sur les nodes EKS.
+# Kata est préinstallé dans les AMI AL2023 mais pas activé par défaut.
+# Ce DaemonSet:
+#   1. Vérifie que les binaires kata sont bien dans l'AMI
+#   2. Ajoute le runtime kata dans config.toml de containerd
+#   3. Redémarre containerd via nsenter
+#
+# DÉSACTIVÉ PAR DÉFAUT:
+#   Le nodeSelector runtime=kata ne match aucun node par défaut.
+#   Pour activer, ajouter le label runtime=kata sur un node group EKS:
+#     labels = { runtime = "kata" }
+#   dans 005_aws_eks/terragrunt.hcl
+#
+# Sécurité:
+#   - hostPID: true → accès au PID 1 du node (nsenter pour restart containerd)
+#   - privileged: true → écriture sur hostPath
+#   - Ces privilèges sont nécessaires et limités à kube-system
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kata-runtime-installer
+  namespace: kube-system
+  labels:
+    app: kata-runtime-installer
+spec:
+  selector:
+    matchLabels:
+      app: kata-runtime-installer
+  template:
+    metadata:
+      labels:
+        app: kata-runtime-installer
+    spec:
+      hostPID: true
+      nodeSelector:
+        # Désactivé par défaut — aucun node n'a ce label
+        # Pour activer: label le node group avec runtime=kata
+        runtime: kata
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: installer
+          image: alpine:3.19
+          securityContext:
+            privileged: true
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -ex
+              echo "[kata-installer] Checking for kata binaries in AMI..."
+              if [ ! -f /host/usr/bin/containerd-shim-kata-v2 ]; then
+                echo "[kata-installer] ERROR: kata binaries not found in AMI."
+                echo "[kata-installer] Use AL2023_x86_64 or AL2023_x86_64_NVIDIA ami_type in EKS node group."
+                exit 1
+              fi
+              echo "[kata-installer] kata binaries found."
+
+              # Ajouter le runtime kata dans containerd si pas déjà fait
+              if ! grep -q "io.containerd.kata.v2" /host/etc/containerd/config.toml; then
+                echo "[kata-installer] Adding kata runtime to containerd config..."
+                cat >> /host/etc/containerd/config.toml << 'EOF'
+
+              # --- Kata Containers runtime ---
+              [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata]
+                runtime_type = "io.containerd.kata.v2"
+
+              [plugins."io.containerd.cri.v1.runtime".containerd.runtimes.kata]
+                runtime_type = "io.containerd.kata.v2"
+              EOF
+                echo "[kata-installer] Restarting containerd..."
+                nsenter -t 1 -m -u -i -n -- systemctl restart containerd
+                echo "[kata-installer] containerd restarted."
+              else
+                echo "[kata-installer] kata runtime already configured. Skipping."
+              fi
+
+              echo "[kata-installer] Done. Keeping pod alive for re-audit."
+              sleep infinity
+          volumeMounts:
+            - name: host-containerd
+              mountPath: /host/etc/containerd
+            - name: host-bin
+              mountPath: /host/usr/bin
+      volumes:
+        - name: host-containerd
+          hostPath:
+            path: /etc/containerd
+            type: Directory
+        - name: host-bin
+          hostPath:
+            path: /usr/bin
+            type: Directory

@@ -1,0 +1,5 @@
+# Kustomize base — k3d (gVisor + FAISS + local-path)
+# ArgoCD lit ce fichier et applique deployment.yaml tel quel.
+# Pour EKS: pointer ArgoCD vers apps/financial-dispute-agent/eks/
+resources:
+  - deployment.yaml

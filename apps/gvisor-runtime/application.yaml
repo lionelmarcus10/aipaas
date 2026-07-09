@@ -1,0 +1,26 @@
+# ArgoCD Application — gVisor runtime (EKS)
+# Désactivé par défaut (nodeSelector runtime=gvisor ne match aucun node).
+# Pour activer: ajouter le label runtime=gvisor sur un node group EKS.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gvisor-runtime
+  namespace: argocd
+  labels:
+    app.kubernetes.io/managed-by: argocd
+    argocd.argoproj.io/project: aipaas
+spec:
+  project: aipaas
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  source:
+    repoURL: https://github.com/lionelmarcus10/aipaas.git
+    path: apps/gvisor-runtime
+    targetRevision: master
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,87 @@
+{
+  "Comment": "Financial Dispute Resolution Agent — B1+B2 fusion",
+  "StartAt": "PARSE_INVOICE",
+  "States": {
+    "PARSE_INVOICE": {
+      "Type": "Task",
+      "Resource": "${lambda_arns["parse_invoice"]}",
+      "Next": "FETCH_CONTRACT"
+    },
+    "FETCH_CONTRACT": {
+      "Type": "Task",
+      "Resource": "${lambda_arns["fetch_contract"]}",
+      "Next": "LLM_AUDIT"
+    },
+    "LLM_AUDIT": {
+      "Type": "Task",
+      "Resource": "${lambda_arns["llm_audit"]}",
+      "Next": "CHOICE_GATE"
+    },
+    "CHOICE_GATE": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.decision",
+          "StringEquals": "PAY",
+          "Next": "EXECUTE_PAYMENT"
+        },
+        {
+          "Variable": "$.decision",
+          "StringEquals": "PARTIAL_PAY",
+          "Next": "EXECUTE_PARTIAL_PAYMENT"
+        },
+        {
+          "Variable": "$.decision",
+          "StringEquals": "HUMAN_REVIEW",
+          "Next": "CREATE_TICKET"
+        },
+        {
+          "Variable": "$.decision",
+          "StringEquals": "DISPUTE",
+          "Next": "LLM_DISPUTE_ANALYSIS"
+        }
+      ],
+      "Default": "CREATE_TICKET"
+    },
+    "EXECUTE_PAYMENT": {
+      "Type": "Task",
+      "Resource": "${lambda_arns["execute_payment"]}",
+      "End": true
+    },
+    "EXECUTE_PARTIAL_PAYMENT": {
+      "Type": "Task",
+      "Resource": "${lambda_arns["partial_payment"]}",
+      "End": true
+    },
+    "CREATE_TICKET": {
+      "Type": "Task",
+      "Resource": "${lambda_arns["create_ticket"]}",
+      "End": true
+    },
+    "LLM_DISPUTE_ANALYSIS": {
+      "Type": "Task",
+      "Resource": "${lambda_arns["llm_dispute"]}",
+      "Next": "LOOKUP_AFFECTED_ORDERS"
+    },
+    "LOOKUP_AFFECTED_ORDERS": {
+      "Type": "Task",
+      "Resource": "${lambda_arns["lookup_orders"]}",
+      "Next": "FRAUD_CHECK"
+    },
+    "FRAUD_CHECK": {
+      "Type": "Task",
+      "Resource": "${lambda_arns["fraud_check"]}",
+      "Next": "LLM_RESOLUTION_PLAN"
+    },
+    "LLM_RESOLUTION_PLAN": {
+      "Type": "Task",
+      "Resource": "${lambda_arns["llm_resolution"]}",
+      "Next": "FINAL_CHOICE"
+    },
+    "FINAL_CHOICE": {
+      "Type": "Task",
+      "Resource": "${lambda_arns["final_choice"]}",
+      "End": true
+    }
+  }
+}

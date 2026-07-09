@@ -1,0 +1,24 @@
+# ArgoCD Application — Shared Storage EKS overlay (EFS)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: shared-storage-eks
+  namespace: argocd
+  labels:
+    app.kubernetes.io/managed-by: argocd
+    argocd.argoproj.io/project: aipaas-eks
+spec:
+  project: aipaas-eks
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: financial-dispute-agent
+  source:
+    repoURL: https://github.com/lionelmarcus10/aipaas.git
+    path: apps/shared-storage/eks
+    targetRevision: master
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

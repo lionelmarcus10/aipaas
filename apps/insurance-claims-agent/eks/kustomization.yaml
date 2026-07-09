@@ -1,0 +1,12 @@
+# Kustomize overlay — EKS
+# Hérite de la base k3d et patch les champs spécifiques EKS:
+# - image depuis ECR au lieu de aipaas-registry:5000
+# - pas de gVisor (runtimeClassName retiré)
+# - storageClassName: gp3 (EBS) au lieu de local-path
+# - RAG_PROVIDER: s3vectors au lieu de faiss
+# - LLM_PROVIDER: bedrock au lieu de vllm
+resources:
+  - ../deployment.yaml
+
+patches:
+  - path: patch.yaml

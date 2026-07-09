@@ -1,0 +1,224 @@
+# --- Namespace ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: insurance-claims-agent
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+# --- Deployment ---
+# The pod runs under gVisor (runtimeClassName: gvisor) for syscall isolation.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: insurance-claims-agent
+  namespace: insurance-claims-agent
+  labels:
+    app: insurance-claims-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: insurance-claims-agent
+  template:
+    metadata:
+      labels:
+        app: insurance-claims-agent
+    spec:
+      runtimeClassName: gvisor
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+
+      initContainers:
+        - name: setup-db
+          image: aipaas-registry:5000/insurance-claims-agent:latest
+          imagePullPolicy: Always
+          env:
+            - name: DB_LOCAL_PATH
+              value: "/data/insurance_claims.duckdb"
+            - name: RAG_PROVIDER
+              value: "faiss"
+            - name: RAG_INDEX_PATH
+              value: "/data/rag_index"
+            - name: HF_HOME
+              value: "/tmp/hf_cache"
+            - name: TRANSFORMERS_CACHE
+              value: "/tmp/hf_cache"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              echo "[setup-db] Checking for DuckDB on shared volume..."
+              if [ -f /data/insurance_claims.duckdb ]; then
+                echo "[setup-db] DB already exists ($(du -h /data/insurance_claims.duckdb | cut -f1)). Skipping DB setup."
+              else
+                echo "[setup-db] DB not found. Running setup_db.py..."
+                cd /app
+                mkdir -p data/raw/kaggle
+                python data/setup_db.py
+                cp data/insurance_claims.duckdb /data/insurance_claims.duckdb
+                echo "[setup-db] DB copied to shared volume ($(du -h /data/insurance_claims.duckdb | cut -f1))"
+              fi
+              # Check if RAG index exists
+              if [ ! -f /data/rag_index.faiss ]; then
+                echo "[setup-db] RAG index not found. Building RAG index..."
+                cd /app
+                python -c "
+              from insurance_claims_agent.tools.db import get_connection
+              from insurance_claims_agent.tools.rag_factory import build_index
+              import os
+              os.environ['RAG_INDEX_PATH'] = '/data/rag_index'
+              conn = get_connection()
+              rows = conn.execute('SELECT policy_id FROM policies').fetchall()
+              conn.close()
+              from insurance_claims_agent.claim_generator import generate_policy_text
+              from insurance_claims_agent.tools.db import get_connection as get_conn
+              conn = get_conn()
+              policies = conn.execute('SELECT policy_id, policy_type, coverage_type, coverage_limit, deductible, premium_annual, start_date, end_date, exclusions, status, customer_id FROM policies').fetchall()
+              conn.close()
+              import json
+              from insurance_claims_agent.claim_generator import Policy
+              policies_map = {}
+              for r in policies:
+                  p = Policy(policy_id=r[0], customer_id=r[10], policy_type=r[1], coverage_type=r[2], coverage_limit=r[3], deductible=r[4], premium_annual=r[5], start_date=r[6], end_date=r[7], exclusions=json.loads(r[8]), status=r[9])
+                  policies_map[r[0]] = generate_policy_text(p)
+              stats = build_index(policies_map)
+              print(f'RAG index built: {stats}')
+              "
+              else
+                echo "[setup-db] RAG index already exists. Skipping."
+              fi
+              echo "[setup-db] Done."
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: duckdb-shared
+              mountPath: /data
+            - name: tmp-init
+              mountPath: /tmp
+
+      containers:
+        - name: orchestrator
+          image: aipaas-registry:5000/insurance-claims-agent:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+              protocol: TCP
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 4Gi
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 30
+            failureThreshold: 10
+
+          env:
+            # --- LLM provider: vLLM (local inference in k3d) ---
+            - name: LLM_PROVIDER
+              value: "vllm"
+            - name: VLLM_BASE_URL
+              value: "http://vllm-svc.aipaas.svc.cluster.local:80/v1"
+            - name: VLLM_MODEL_ID
+              value: "Qwen/Qwen2.5-0.5B-Instruct"
+            - name: VLLM_API_KEY
+              value: "dummy"
+            # --- DuckDB location (PVC mounted at /app/data, read-only) ---
+            - name: DB_LOCAL_PATH
+              value: "/app/data/insurance_claims.duckdb"
+            # --- RAG configuration ---
+            - name: RAG_PROVIDER
+              value: "faiss"
+            - name: RAG_INDEX_PATH
+              value: "/app/data/rag_index"
+            - name: HF_HOME
+              value: "/tmp/hf_cache"
+            - name: TRANSFORMERS_CACHE
+              value: "/tmp/hf_cache"
+
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: duckdb-shared
+              mountPath: /app/data
+              readOnly: true
+
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: tmp-init
+          emptyDir: {}
+        - name: duckdb-shared
+          persistentVolumeClaim:
+            claimName: duckdb-pvc
+---
+# --- PVC for shared DuckDB ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: duckdb-pvc
+  namespace: insurance-claims-agent
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 2Gi
+---
+# --- Service ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: insurance-claims-agent
+  namespace: insurance-claims-agent
+  labels:
+    app: insurance-claims-agent
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: insurance-claims-agent

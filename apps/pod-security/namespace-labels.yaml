@@ -1,0 +1,100 @@
+# Pod Security Admission — namespace labels
+#
+# Kubernetes 1.25+ has built-in Pod Security Admission (PSA) that replaces
+# the deprecated PodSecurityPolicy (PSP, removed in 1.25).
+#
+# Three levels (from least to most restrictive):
+#   privileged  → no restrictions (default, insecure)
+#   baseline    → blocks privileged, hostPath, hostNetwork, hostPID, hostIPC
+#   restricted  → baseline + force runAsNonRoot, drop ALL capabilities,
+#                 require seccompProfile, no hostPort, no privileged escalation
+#
+# We use `restricted` for all workload namespaces.
+# System namespaces (kube-system, kyverno-system) stay `privileged` because
+# their components (CNI, kube-proxy, Kyverno itself) need elevated permissions.
+#
+# The label format is:
+#   pod-security.kubernetes.io/enforce: <level>
+#   pod-security.kubernetes.io/audit:   <level>   (log violations but allow)
+#   pod-security.kubernetes.io/warn:    <level>   (warn in kubectl output)
+#
+# We set enforce=restricted, audit=restricted, warn=restricted for consistency.
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argo-rollouts
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: default
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: keda-system
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: langfuse
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: observability
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: opencost
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vllm
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: financial-dispute-agent
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

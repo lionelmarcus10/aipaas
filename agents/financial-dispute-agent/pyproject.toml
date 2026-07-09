@@ -1,0 +1,38 @@
+[project]
+name = "financial-dispute-agent"
+version = "0.1.0"
+description = "B1+B2 Financial Dispute Resolution Agent — Step Functions + Strands"
+requires-python = ">=3.10"
+dependencies = [
+    "strands-agents[ollama,openai]>=1.53.0",
+    "strands-agents-tools>=0.8.1",
+    # cast is installed separately from libs/custom-aws-strands-toolkit
+    # (see Dockerfile or: pip install -e ../../libs/custom-aws-strands-toolkit)
+    "cast",
+    "faker>=30.0.0",
+    "pydantic>=2.0.0",
+    "duckdb>=1.0.0",
+    "datasets>=3.0.0",
+    "pandas>=2.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/financial_dispute_agent"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: requires OLLAMA_API_KEY for real LLM calls",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]

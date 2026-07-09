@@ -1,0 +1,73 @@
+# --- Network Policy — Zero-Trust for financial-dispute-agent ---
+#
+# ⚠️ PEDAGOGICAL TASK — Fill in the allow rules below.
+# The deny-all is provided. You write the allow rules.
+# This is a key interview topic (zero-trust networking, NetworkPolicy).
+#
+# Architecture:
+#   base/deny-all.yaml blocks ALL traffic (ingress + egress) in this namespace.
+#   allow/*.yaml re-enables specific flows explicitly.
+#   Anything not explicitly allowed is blocked.
+#
+# Flows to consider:
+#   1. DNS — every pod needs to resolve service names (kube-dns in kube-system)
+#   2. Ingress — who needs to call this API? (ArgoCD for sync, other pods for workflow)
+#   3. Egress — what does this pod need to reach?
+#      - DuckDB is local (no network)
+#      - Ollama Cloud (if OLLAMA_API_KEY is set) — external HTTPS
+#      - kube-api (for any K8s API calls)
+#
+# Key concepts:
+#   - podSelector: {} matches ALL pods in the namespace
+#   - policyTypes: [Ingress, Egress] controls which directions are affected
+#   - egress with no rules = deny all egress
+#   - egress with rules = allow ONLY those rules
+
+---
+# Deny all ingress and egress by default
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-all
+  namespace: financial-dispute-agent
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+# No ingress/egress rules = deny everything
+
+---
+# TODO(pedagogical): Add allow rules below.
+# Create one NetworkPolicy per flow you want to allow.
+#
+# Example structure:
+#
+# apiVersion: networking.k8s.io/v1
+# kind: NetworkPolicy
+# metadata:
+#   name: allow-dns
+#   namespace: financial-dispute-agent
+# spec:
+#   podSelector: {}
+#   policyTypes:
+#     - Egress
+#   egress:
+#     - to:
+#         - namespaceSelector:
+#             matchLabels:
+#               kubernetes.io/metadata.name: kube-system
+#           podSelector:
+#             matchLabels:
+#               k8s-app: kube-dns
+#       ports:
+#         - protocol: UDP
+#           port: 53
+#         - protocol: TCP
+#           port: 53
+#
+# Think about:
+#   1. DNS (kube-dns in kube-system) — every pod needs this
+#   2. Ingress from the namespace itself (for internal communication)
+#   3. Egress to Ollama Cloud (external HTTPS, port 443)
+#   4. Ingress from ArgoCD (for health checks during sync)

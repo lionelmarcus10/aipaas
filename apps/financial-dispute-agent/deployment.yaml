@@ -1,0 +1,275 @@
+# --- Namespace ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: financial-dispute-agent
+  labels:
+    # Pod Security Standard: restricted (the most secure level).
+    # This is possible because we use a PVC (local-path provisioner) instead
+    # of hostPath. The PVC is RWO, which is fine for our single-replica agent.
+    # EKS prod: switch the PVC to EFS CSI with ReadWriteMany for multi-replica.
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+# --- Deployment ---
+# The pod runs under gVisor (runtimeClassName: gvisor) for syscall isolation.
+# This is critical because the agent processes external data (invoices, contracts)
+# and could potentially execute untrusted code.
+#
+# ⚠️ PEDAGOGICAL TASK — Fill in the securityContext fields below.
+# See the TODO comments for guidance. The structure is provided; you choose
+# the values. This is a key interview topic (Pod Security Standards).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: financial-dispute-agent
+  namespace: financial-dispute-agent
+  labels:
+    app: financial-dispute-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: financial-dispute-agent
+  template:
+    metadata:
+      labels:
+        app: financial-dispute-agent
+    spec:
+      # --- gVisor isolation ---
+      # Intercepts syscalls in userspace, isolating the pod from the host kernel.
+      # Requires the RuntimeClass "gvisor" (created by the k3d-cluster Terraform module).
+      runtimeClassName: gvisor
+
+      #Fill in the pod-level securityContext.
+      # Key fields to consider (Pod Security Standard: restricted):
+      #   - runAsNonRoot: true          # pods must not run as root
+      #   - runAsUser: 10001            # non-root UID (matches Dockerfile)
+      #   - runAsGroup: 10001           # non-root GID
+      #   - fsGroup: 10001              # for volume permissions
+      #   - seccompProfile:             # syscall filtering
+      #       type: RuntimeDefault
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+
+      # --- initContainer: build the DuckDB on the shared volume (runs once) ---
+      # Mounts the shared volume read-write, checks if the DB exists, and runs
+      # setup_db.py if not. This only runs the first time the pod starts
+      # (or after the shared volume is wiped).
+      initContainers:
+        - name: setup-db
+          image: aipaas-registry:5000/financial-dispute-agent:rag-fix
+          imagePullPolicy: Always
+          env:
+            # DB is on the PVC mounted at /data (not /app/data like the main container)
+            - name: DB_LOCAL_PATH
+              value: "/data/financial_dispute.duckdb"
+            # RAG index is also stored on the PVC
+            - name: RAG_PROVIDER
+              value: "faiss"
+            - name: RAG_INDEX_PATH
+              value: "/data/rag_index"
+            # HuggingFace model cache: must be writable (readOnlyRootFilesystem
+            # is not set, but /home/agent doesn't exist). Use /tmp which is
+            # mounted as emptyDir.
+            - name: HF_HOME
+              value: "/tmp/hf_cache"
+            - name: TRANSFORMERS_CACHE
+              value: "/tmp/hf_cache"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              echo "[setup-db] Checking for DuckDB on shared volume..."
+              if [ -f /data/financial_dispute.duckdb ]; then
+                echo "[setup-db] DB already exists ($(du -h /data/financial_dispute.duckdb | cut -f1)). Skipping DB setup."
+              else
+                echo "[setup-db] DB not found. Running setup_db.py..."
+                cd /app
+                mkdir -p data/raw
+                python data/setup_db.py
+                cp data/financial_dispute.duckdb /data/financial_dispute.duckdb
+                echo "[setup-db] DB copied to shared volume ($(du -h /data/financial_dispute.duckdb | cut -f1))"
+              fi
+              # Check if RAG index exists (separate from DB)
+              if [ ! -f /data/rag_index.faiss ]; then
+                echo "[setup-db] RAG index not found. Building RAG index..."
+                cd /app
+                python -c "
+              from financial_dispute_agent.tools.db import get_connection
+              from financial_dispute_agent.tools.rag_factory import build_index
+              conn = get_connection()
+              rows = conn.execute('SELECT supplier_id, contract_text FROM suppliers').fetchall()
+              conn.close()
+              contracts = {r[0]: r[1] for r in rows}
+              stats = build_index(contracts)
+              print(f'RAG index built: {stats}')
+              "
+              else
+                echo "[setup-db] RAG index already exists. Skipping."
+              fi
+              echo "[setup-db] Done."
+          # initContainer runs as non-root (UID 10001) to comply with
+          # Pod Security Standard: restricted. The fsGroup in the pod-level
+          # securityContext ensures the PVC is writable by this UID.
+          # Note: readOnlyRootFilesystem is NOT set here because setup_db.py
+          # needs to write intermediate files to /app/data/raw/. This is
+          # allowed by PSS restricted (readOnlyRootFilesystem is optional).
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: duckdb-shared
+              mountPath: /data
+            - name: tmp-init
+              mountPath: /tmp
+
+      containers:
+        - name: orchestrator
+          image: aipaas-registry:5000/financial-dispute-agent:rag-fix
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+              protocol: TCP
+
+          # TODO(pedagogical): Fill in the container-level securityContext.
+          # Key fields to consider:
+          #   - allowPrivilegeEscalation: false   # no sudo/SETUID
+          #   - readOnlyRootFilesystem: true      # immutable rootfs
+          #   - capabilities.drop: [ALL]          # drop all Linux capabilities
+          #   - runAsNonRoot: true                # redundant with pod-level, but explicit
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 4Gi
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 30
+            failureThreshold: 10
+
+          env:
+            # --- LLM provider: vLLM (local inference in k3d) ---
+            # The agent calls vLLM's OpenAI-compatible API to run LLM states.
+            # vLLM runs as a separate pod in the "aipaas" namespace.
+            # No API key needed (vLLM doesn't check it by default).
+            - name: LLM_PROVIDER
+              value: "vllm"
+            - name: VLLM_BASE_URL
+              value: "http://vllm-svc.aipaas.svc.cluster.local:80/v1"
+            - name: VLLM_MODEL_ID
+              value: "Qwen/Qwen2.5-0.5B-Instruct"
+            - name: VLLM_API_KEY
+              value: "dummy"  # vLLM doesn't check the key, but the client requires one
+            # --- DuckDB location (PVC mounted at /app/data, read-only) ---
+            - name: DB_LOCAL_PATH
+              value: "/app/data/financial_dispute.duckdb"
+            # --- RAG configuration ---
+            # Provider: "faiss" (local, k3d) or "s3vectors" (AWS/Floci)
+            - name: RAG_PROVIDER
+              value: "faiss"
+            # FAISS index path (base name, .faiss and .meta are appended)
+            - name: RAG_INDEX_PATH
+              value: "/app/data/rag_index"
+            # HuggingFace cache: writable /tmp (readOnlyRootFilesystem=true)
+            - name: HF_HOME
+              value: "/tmp/hf_cache"
+            - name: TRANSFORMERS_CACHE
+              value: "/tmp/hf_cache"
+            # --- Alternative providers (uncomment to switch) ---
+            # Ollama Cloud: set LLM_PROVIDER=ollama + OLLAMA_API_KEY + OLLAMA_MODEL_ID=glm-5.2:cloud
+            # Bedrock (AWS): set LLM_PROVIDER=bedrock + AWS_BEDROCK_REGION
+
+          # --- Volumes ---
+          # /tmp: writable emptyDir (required because readOnlyRootFilesystem: true)
+          # /app/data: PVC (local-path) mounted read-only (shared DuckDB)
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: duckdb-shared
+              mountPath: /app/data
+              readOnly: true
+
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: tmp-init
+          emptyDir: {}
+        # --- Shared DuckDB volume (PVC, no hostPath) ---
+        # Uses k3d's built-in local-path provisioner. RWO is fine for a
+        # single-replica agent. The initContainer writes the DB on first
+        # boot; the main container reads it.
+        # On EKS: switch the PVC to EFS CSI with accessModes: [ReadWriteMany].
+        - name: duckdb-shared
+          persistentVolumeClaim:
+            claimName: duckdb-pvc
+---
+# --- PVC for shared DuckDB ---
+# Uses k3d's built-in local-path provisioner (no hostPath in pod spec).
+# RWO means only one pod can mount it at a time, which is fine for our
+# single-replica agent. The initContainer writes, the main container reads.
+# For EKS multi-replica: switch to EFS CSI with ReadWriteMany.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: duckdb-pvc
+  namespace: financial-dispute-agent
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+# --- Service ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: financial-dispute-agent
+  namespace: financial-dispute-agent
+  labels:
+    app: financial-dispute-agent
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: financial-dispute-agent
