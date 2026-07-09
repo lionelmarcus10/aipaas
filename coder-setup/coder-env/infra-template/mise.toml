@@ -1,0 +1,50 @@
+[tools]
+terraform = "latest"
+terragrunt = "latest"
+k3d = "latest"
+kubectl = "latest"
+helm = "latest"
+k9s = "latest"
+jq = "latest"
+yq = "latest"
+aws-cli = "latest"
+python = "3.12"
+node = "22"
+
+[env]
+KUBECONFIG = "{{ config_root }}/kubeconfig"
+AWS_DEFAULT_REGION = "eu-west-3"
+
+[tasks.cluster-up]
+description = "Create the k3d cluster via Terragrunt"
+run = "cd ../../infra/live/001_init_cluster && terragrunt apply -auto-approve"
+
+[tasks.cluster-down]
+description = "Destroy the k3d cluster via Terragrunt"
+run = "cd ../../infra/live/001_init_cluster && terragrunt destroy -auto-approve"
+
+[tasks.cluster-plan]
+description = "Preview cluster changes via Terragrunt"
+run = "cd ../../infra/live/001_init_cluster && terragrunt plan"
+
+[tasks.kubectl]
+description = "Quick kubectl shortcut"
+run = "kubectl get nodes -o wide"
+
+[tasks.verify]
+description = "Verify all tools are installed and accessible"
+run = """
+echo "=== Tool versions ==="
+echo "mise:        $(mise --version)"
+echo "terraform:   $(terraform version -json 2>/dev/null | jq -r '.terraform_version' 2>/dev/null || terraform version)"
+echo "terragrunt:  $(terragrunt --version)"
+echo "k3d:         $(k3d version)"
+echo "kubectl:     $(kubectl version --client --short 2>/dev/null || kubectl version --client)"
+echo "helm:        $(helm version --short)"
+echo "docker:      $(docker --version)"
+echo "python:      $(python --version)"
+echo "node:        $(node --version)"
+echo ""
+echo "=== Docker daemon ==="
+docker info --format '${.ServerVersion}' 2>/dev/null && echo "Docker daemon: OK" || echo "Docker daemon: NOT RUNNING"
+"""
