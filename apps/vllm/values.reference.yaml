@@ -1,13 +1,10 @@
-# vLLM Helm values — k3d CPU (default) / AWS GPU switch
-# Upstream chart: vllm-project/vllm-helm
-#
-# Switch to AWS GPU: override these values in a separate values file or via Terragrunt:
-#   image.repository: vllm/vllm-openai
-#   image.tag: latest-gpu
+# vLLM Helm values reference — k3d CPU (default) / AWS GPU switch
+# The actual deployment uses raw manifests (deployment.yaml) for k3d.
+# For AWS GPU mode, switch to the upstream Helm chart or update raw manifests:
+#   image: vllm/vllm-openai:latest-gpu
 #   resources: { nvidia.com/gpu: 1 }
 #   extraInit.modelDownload.enabled: true (S3)
 
-# --- k3d CPU mode (default) ---
 image:
   repository: vllm/vllm-openai
   tag: latest
@@ -23,7 +20,6 @@ image:
     - cpu
 
 replicaCount: 1
-
 resources:
   limits:
     cpu: 2
@@ -36,13 +32,11 @@ containerPort: 8000
 servicePort: 80
 serviceName: vllm
 
-# Disable S3 model download in k3d mode (model pulled from HF Hub directly)
 extraInit:
   modelDownload:
     enabled: false
   pvcStorage: 1Gi
 
-# Probes
 livenessProbe:
   httpGet:
     path: /health
@@ -58,10 +52,6 @@ readinessProbe:
   initialDelaySeconds: 30
   periodSeconds: 5
   failureThreshold: 3
-
-# KEDA ScaledObject will be added in Sprint 4 (Scale-to-Zero)
-# autoscaling:
-#   enabled: false  # managed by KEDA, not HPA
 
 labels:
   environment: dev

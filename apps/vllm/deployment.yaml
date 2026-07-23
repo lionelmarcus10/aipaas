@@ -1,0 +1,79 @@
+# vLLM raw manifests — k3d CPU mode (default)
+# Switch to AWS GPU: change image tag, resources, and add GPU limits
+# The official vLLM Helm chart is not published to a registry, so we use raw manifests
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm
+  namespace: aipaas
+  labels:
+    app: vllm
+    environment: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vllm
+  template:
+    metadata:
+      labels:
+        app: vllm
+        environment: dev
+    spec:
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:latest
+          command:
+            - vllm
+            - serve
+            - facebook/opt-125m
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8000"
+            - --device
+            - cpu
+          ports:
+            - containerPort: 8000
+              name: http
+          resources:
+            limits:
+              cpu: 2
+              memory: 4Gi
+            requests:
+              cpu: 1
+              memory: 2Gi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            failureThreshold: 3
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm
+  namespace: aipaas
+  labels:
+    app: vllm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 8000
+      protocol: TCP
+      name: http
+  selector:
+    app: vllm

@@ -59,11 +59,16 @@ variable "apps" {
   description = "List of ArgoCD applications to create"
   type = list(object({
     name             = string
-    path             = string
+    path             = optional(string, "")
     target_namespace = string
     auto_sync        = optional(bool, true)
     self_heal        = optional(bool, true)
     prune            = optional(bool, true)
+    # Helm chart mode (optional): if set, use upstream Helm chart instead of Git path
+    helm_chart       = optional(string, "")
+    helm_repo_url    = optional(string, "")
+    helm_version     = optional(string, "")
+    helm_values      = optional(string, "")
   }))
   default = []
 }

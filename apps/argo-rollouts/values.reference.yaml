@@ -1,5 +1,5 @@
-# Argo Rollouts Helm values — k3d / AWS switch via overrides
-# Upstream chart: argoproj/argo-rollouts
+# Argo Rollouts Helm values reference — k3d / AWS switch
+# Actual values are inlined in infra/live/003_argocd_config/terragrunt.hcl
 
 controller:
   resources:

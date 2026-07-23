@@ -81,10 +81,28 @@ resource "argocd_application" "apps" {
       namespace = each.value.target_namespace
     }
 
-    source {
-      repo_url        = var.git_repo_url
-      path            = each.value.path
-      target_revision = var.git_branch
+    # Git path mode (raw manifests or kustomize)
+    dynamic "source" {
+      for_each = each.value.helm_chart == "" ? [1] : []
+      content {
+        repo_url        = var.git_repo_url
+        path            = each.value.path
+        target_revision = var.git_branch
+      }
+    }
+
+    # Helm chart mode (upstream chart + inline values)
+    dynamic "source" {
+      for_each = each.value.helm_chart != "" ? [1] : []
+      content {
+        repo_url        = each.value.helm_repo_url
+        chart           = each.value.helm_chart
+        target_revision = each.value.helm_version
+
+        helm {
+          values = each.value.helm_values
+        }
+      }
     }
 
     sync_policy {

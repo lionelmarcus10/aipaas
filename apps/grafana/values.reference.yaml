@@ -1,0 +1,29 @@
+# Grafana Helm values reference — k3d / AWS switch
+# Actual values are inlined in infra/live/003_argocd_config/terragrunt.hcl
+
+adminUser: admin
+adminPassword: aipaas-dev
+resources:
+  limits:
+    cpu: 500m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+persistence:
+  enabled: true
+  size: 1Gi
+  accessModes:
+    - ReadWriteOnce
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus-server.observability.svc.cluster.local:80
+        isDefault: true
+service:
+  type: ClusterIP
+  port: 80

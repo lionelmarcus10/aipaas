@@ -1,5 +1,5 @@
-# OpenCost Helm values — k3d / AWS switch via overrides
-# Upstream chart: opencost/opencost
+# OpenCost Helm values reference — k3d / AWS switch
+# Actual values are inlined in infra/live/003_argocd_config/terragrunt.hcl
 
 opencost:
   exporter:
@@ -11,23 +11,11 @@ opencost:
       requests:
         cpu: 100m
         memory: 256Mi
-
-  # k3d mode: no cloud provider integration
-  # AWS mode: set cloudProvider: aws and provide account info
   cloudProvider: ""
-
   prometheus:
     enabled: true
     internal:
       enabled: true
       address: http://prometheus-server.observability.svc.cluster.local:80
-
   ui:
     enabled: true
-    resources:
-      limits:
-        cpu: 200m
-        memory: 128Mi
-      requests:
-        cpu: 50m
-        memory: 64Mi

@@ -27,71 +27,160 @@ inputs = {
   helm_repos = [
     { name = "kedacore",      url = "https://kedacore.github.io/charts" },
     { name = "argoproj",      url = "https://argoproj.github.io/argo-helm" },
-    { name = "vllm-helm",     url = "https://vllm-project.github.io/vllm-helm" },
     { name = "grafana",       url = "https://grafana.github.io/helm-charts" },
     { name = "opencost",      url = "https://opencost.github.io/opencost-helm-chart" },
     { name = "langfuse",      url = "https://langfuse.github.io/langfuse-k8s" },
   ]
 
-  # App-of-Apps: chaque entrée = une Application ArgoCD qui pointe vers un sous-dossier de apps/
+  # App-of-Apps: Git path mode = raw manifests in our repo; Helm chart mode = upstream chart + inline values
   apps = [
+    # --- Sprint 1 (Git path) ---
     {
       name             = "test-nginx"
       path             = "apps/test-nginx"
       target_namespace = "default"
-      auto_sync        = true
-      self_heal        = true
-      prune            = true
     },
     # --- Sprint 4 ---
+    # KEDA — Helm chart mode
     {
       name             = "keda"
-      path             = "apps/keda"
       target_namespace = "keda-system"
-      auto_sync        = true
-      self_heal        = true
-      prune            = true
+      helm_chart       = "keda"
+      helm_repo_url    = "https://kedacore.github.io/charts"
+      helm_version     = "2.16.0"
+      helm_values      = <<-EOT
+watchNamespace: ""
+operator:
+  logLevel: debug
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+EOT
     },
+    # vLLM — Git path mode (raw manifests, chart not published to registry)
     {
       name             = "vllm"
       path             = "apps/vllm"
       target_namespace = "aipaas"
-      auto_sync        = true
-      self_heal        = true
-      prune            = true
     },
     # --- Sprint 5 ---
+    # Argo Rollouts — Helm chart mode
     {
       name             = "argo-rollouts"
-      path             = "apps/argo-rollouts"
       target_namespace = "argo-rollouts"
-      auto_sync        = true
-      self_heal        = true
-      prune            = true
+      helm_chart       = "argo-rollouts"
+      helm_repo_url    = "https://argoproj.github.io/argo-helm"
+      helm_version     = "2.37.7"
+      helm_values      = <<-EOT
+controller:
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+dashboard:
+  enabled: true
+EOT
     },
+    # Grafana — Helm chart mode
     {
       name             = "grafana"
-      path             = "apps/grafana"
       target_namespace = "observability"
-      auto_sync        = true
-      self_heal        = true
-      prune            = true
+      helm_chart       = "grafana"
+      helm_repo_url    = "https://grafana.github.io/helm-charts"
+      helm_version     = "8.0.0"
+      helm_values      = <<-EOT
+adminUser: admin
+adminPassword: aipaas-dev
+resources:
+  limits:
+    cpu: 500m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+persistence:
+  enabled: true
+  size: 1Gi
+  accessModes:
+    - ReadWriteOnce
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus-server.observability.svc.cluster.local:80
+        isDefault: true
+service:
+  type: ClusterIP
+  port: 80
+EOT
     },
+    # OpenCost — Helm chart mode
     {
       name             = "opencost"
-      path             = "apps/opencost"
       target_namespace = "opencost"
-      auto_sync        = true
-      self_heal        = true
-      prune            = true
+      helm_chart       = "opencost"
+      helm_repo_url    = "https://opencost.github.io/opencost-helm-chart"
+      helm_version     = "1.43.0"
+      helm_values      = <<-EOT
+opencost:
+  exporter:
+    defaultClusterName: aipaas-k3d
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+  cloudProvider: ""
+  prometheus:
+    enabled: true
+    internal:
+      enabled: true
+      address: http://prometheus-server.observability.svc.cluster.local:80
+  ui:
+    enabled: true
+EOT
     },
+    # Langfuse — Helm chart mode
     {
       name             = "langfuse"
-      path             = "apps/langfuse"
       target_namespace = "observability"
-      auto_sync        = true
-      self_heal        = true
-      prune            = true
+      helm_chart       = "langfuse"
+      helm_repo_url    = "https://langfuse.github.io/langfuse-k8s"
+      helm_version     = "3.0.0"
+      helm_values      = <<-EOT
+langfuse:
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  postgresql:
+    enabled: true
+    primary:
+      persistence:
+        size: 2Gi
+  nextauth:
+    secret: aipaas-langfuse-dev-secret-change-me
+  salt:
+    secret: aipaas-langfuse-dev-salt-change-me
+service:
+  type: ClusterIP
+  port: 80
+EOT
     },
   ]
 }

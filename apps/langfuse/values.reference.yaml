@@ -1,5 +1,5 @@
-# Langfuse Helm values — k3d / AWS switch via overrides
-# Upstream chart: langfuse/langfuse
+# Langfuse Helm values reference — k3d / AWS switch
+# Actual values are inlined in infra/live/003_argocd_config/terragrunt.hcl
 
 langfuse:
   resources:
@@ -9,23 +9,15 @@ langfuse:
     requests:
       cpu: 100m
       memory: 256Mi
-
-  # Built-in PostgreSQL for k3d dev mode
-  # AWS mode: use external RDS endpoint
   postgresql:
     enabled: true
     primary:
       persistence:
         size: 2Gi
-
-  # NextAuth secret — change in prod
   nextauth:
     secret: aipaas-langfuse-dev-secret-change-me
-
-  # Salt for hashing — change in prod
   salt:
     secret: aipaas-langfuse-dev-salt-change-me
-
 service:
   type: ClusterIP
   port: 80
