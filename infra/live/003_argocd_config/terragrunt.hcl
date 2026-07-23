@@ -30,6 +30,7 @@ inputs = {
     { name = "grafana",       url = "https://grafana.github.io/helm-charts" },
     { name = "opencost",      url = "https://opencost.github.io/opencost-helm-chart" },
     { name = "langfuse",      url = "https://langfuse.github.io/langfuse-k8s" },
+    { name = "prometheus",    url = "https://prometheus-community.github.io/helm-charts" },
   ]
 
   # App-of-Apps: Git path mode = raw manifests in our repo; Helm chart mode = upstream chart + inline values
@@ -68,6 +69,33 @@ EOT
       target_namespace = "aipaas"
     },
     # --- Sprint 5 ---
+    # Prometheus — Helm chart mode (required by OpenCost + Grafana)
+    {
+      name             = "prometheus"
+      target_namespace = "observability"
+      helm_chart       = "prometheus"
+      helm_repo_url    = "https://prometheus-community.github.io/helm-charts"
+      helm_version     = "27.0.0"
+      helm_values      = <<-EOT
+server:
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  persistentVolume:
+    enabled: true
+    size: 2Gi
+alertmanager:
+  enabled: false
+pushgateway:
+  enabled: false
+nodeExporter:
+  enabled: true
+EOT
+    },
     # Argo Rollouts — Helm chart mode
     {
       name             = "argo-rollouts"
@@ -145,10 +173,10 @@ opencost:
   cloudProvider: ""
   prometheus:
     internal:
-      enabled: false
-    external:
       enabled: true
-      url: "http://localhost:9090"
+      serviceName: prometheus-server
+      namespaceName: observability
+      port: 80
   ui:
     enabled: true
 EOT

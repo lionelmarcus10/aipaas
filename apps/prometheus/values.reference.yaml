@@ -1,0 +1,23 @@
+# Prometheus Helm values reference — k3d / AWS switch
+# Actual values are inlined in infra/live/003_argocd_config/terragrunt.hcl
+
+server:
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  persistentVolume:
+    enabled: true
+    size: 2Gi
+
+alertmanager:
+  enabled: false
+
+pushgateway:
+  enabled: false
+
+nodeExporter:
+  enabled: true
