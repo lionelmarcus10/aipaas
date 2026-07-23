@@ -178,6 +178,8 @@ langfuse:
     value: "aipaas-langfuse-dev-encryption-key-change-me-64chars"
 postgresql:
   deploy: true
+  auth:
+    password: "aipaas-langfuse-pg-dev"
   primary:
     persistence:
       size: 2Gi
