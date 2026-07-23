@@ -1,0 +1,13 @@
+# Argo Rollouts Helm values — k3d / AWS switch via overrides
+# Upstream chart: argoproj/argo-rollouts
+
+controller:
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+dashboard:
+  enabled: true

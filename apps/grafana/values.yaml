@@ -1,0 +1,53 @@
+# Grafana Helm values — k3d / AWS switch via overrides
+# Upstream chart: grafana/grafana
+
+adminUser: admin
+adminPassword: aipaas-dev
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+persistence:
+  enabled: true
+  size: 1Gi
+  accessModes:
+    - ReadWriteOnce
+
+# Datasources — auto-provisioned
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus-server.observability.svc.cluster.local:80
+        isDefault: true
+      - name: OpenCost
+        type: prometheus
+        access: proxy
+        url: http://opencost.opencost.svc.cluster.local:9003
+        isDefault: false
+
+service:
+  type: ClusterIP
+  port: 80
+
+# Dashboards will be added in Sprint 5
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+      - name: aipaas
+        orgId: 1
+        folder: AIPaaS
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/aipaas

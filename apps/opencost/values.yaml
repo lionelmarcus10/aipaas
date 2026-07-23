@@ -1,0 +1,33 @@
+# OpenCost Helm values — k3d / AWS switch via overrides
+# Upstream chart: opencost/opencost
+
+opencost:
+  exporter:
+    defaultClusterName: aipaas-k3d
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+
+  # k3d mode: no cloud provider integration
+  # AWS mode: set cloudProvider: aws and provide account info
+  cloudProvider: ""
+
+  prometheus:
+    enabled: true
+    internal:
+      enabled: true
+      address: http://prometheus-server.observability.svc.cluster.local:80
+
+  ui:
+    enabled: true
+    resources:
+      limits:
+        cpu: 200m
+        memory: 128Mi
+      requests:
+        cpu: 50m
+        memory: 64Mi

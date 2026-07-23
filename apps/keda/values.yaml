@@ -1,0 +1,13 @@
+# KEDA Helm values — k3d / AWS switch via overrides
+# Upstream chart: kedacore/keda
+
+watchNamespace: ""
+operator:
+  logLevel: debug
+resources:
+  limits:
+    cpu: 500m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi

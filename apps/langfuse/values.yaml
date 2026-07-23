@@ -1,0 +1,31 @@
+# Langfuse Helm values — k3d / AWS switch via overrides
+# Upstream chart: langfuse/langfuse
+
+langfuse:
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+  # Built-in PostgreSQL for k3d dev mode
+  # AWS mode: use external RDS endpoint
+  postgresql:
+    enabled: true
+    primary:
+      persistence:
+        size: 2Gi
+
+  # NextAuth secret — change in prod
+  nextauth:
+    secret: aipaas-langfuse-dev-secret-change-me
+
+  # Salt for hashing — change in prod
+  salt:
+    secret: aipaas-langfuse-dev-salt-change-me
+
+service:
+  type: ClusterIP
+  port: 80
