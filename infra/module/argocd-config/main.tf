@@ -127,7 +127,7 @@ resource "argocd_application" "apps" {
     }
   }
 
-  wait = true
+  wait = false
 
   depends_on = [argocd_repository.main]
 }

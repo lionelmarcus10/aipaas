@@ -47,7 +47,7 @@ inputs = {
       target_namespace = "keda-system"
       helm_chart       = "keda"
       helm_repo_url    = "https://kedacore.github.io/charts"
-      helm_version     = "2.16.0"
+      helm_version     = "2.20.1"
       helm_values      = <<-EOT
 watchNamespace: ""
 operator:
@@ -74,7 +74,7 @@ EOT
       target_namespace = "argo-rollouts"
       helm_chart       = "argo-rollouts"
       helm_repo_url    = "https://argoproj.github.io/argo-helm"
-      helm_version     = "2.37.7"
+      helm_version     = "2.41.1"
       helm_values      = <<-EOT
 controller:
   resources:
@@ -94,7 +94,7 @@ EOT
       target_namespace = "observability"
       helm_chart       = "grafana"
       helm_repo_url    = "https://grafana.github.io/helm-charts"
-      helm_version     = "8.0.0"
+      helm_version     = "10.5.15"
       helm_values      = <<-EOT
 adminUser: admin
 adminPassword: aipaas-dev
@@ -130,7 +130,7 @@ EOT
       target_namespace = "opencost"
       helm_chart       = "opencost"
       helm_repo_url    = "https://opencost.github.io/opencost-helm-chart"
-      helm_version     = "1.43.0"
+      helm_version     = "2.5.28"
       helm_values      = <<-EOT
 opencost:
   exporter:
@@ -158,7 +158,7 @@ EOT
       target_namespace = "observability"
       helm_chart       = "langfuse"
       helm_repo_url    = "https://langfuse.github.io/langfuse-k8s"
-      helm_version     = "3.0.0"
+      helm_version     = "1.5.40"
       helm_values      = <<-EOT
 langfuse:
   resources:
