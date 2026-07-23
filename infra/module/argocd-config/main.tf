@@ -57,10 +57,10 @@ resource "argocd_project" "this" {
       }
     }
 
-    # Allow Namespace cluster-scoped resources (needed by Helm charts that create namespaces)
+    # Allow cluster-scoped resources (Namespace, ClusterRole, ClusterRoleBinding, CRDs, etc.)
     cluster_resource_whitelist {
-      group = ""
-      kind  = "Namespace"
+      group = "*"
+      kind  = "*"
     }
   }
 }
