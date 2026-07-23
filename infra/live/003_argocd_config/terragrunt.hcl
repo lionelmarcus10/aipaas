@@ -23,6 +23,16 @@ inputs = {
 
   target_namespaces = ["default", "aipaas", "agents", "keda-system", "argo-rollouts", "observability", "opencost"]
 
+  # Helm repositories for upstream charts
+  helm_repos = [
+    { name = "kedacore",      url = "https://kedacore.github.io/charts" },
+    { name = "argoproj",      url = "https://argoproj.github.io/argo-helm" },
+    { name = "vllm-helm",     url = "https://vllm-project.github.io/vllm-helm" },
+    { name = "grafana",       url = "https://grafana.github.io/helm-charts" },
+    { name = "opencost",      url = "https://opencost.github.io/opencost-helm-chart" },
+    { name = "langfuse",      url = "https://langfuse.github.io/langfuse-k8s" },
+  ]
+
   # App-of-Apps: chaque entrée = une Application ArgoCD qui pointe vers un sous-dossier de apps/
   apps = [
     {

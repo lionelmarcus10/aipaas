@@ -45,6 +45,16 @@ variable "target_namespaces" {
   default     = ["default", "aipaas", "agents"]
 }
 
+variable "helm_repos" {
+  description = "List of Helm repositories to register in ArgoCD"
+  type = list(object({
+    name = string
+    url  = string
+    type = optional(string, "helm")
+  }))
+  default = []
+}
+
 variable "apps" {
   description = "List of ArgoCD applications to create"
   type = list(object({

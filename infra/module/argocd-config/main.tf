@@ -21,6 +21,18 @@ resource "argocd_repository" "main" {
   type = "git"
 }
 
+# --- Helm repositories ---
+
+resource "argocd_repository" "helm" {
+  for_each = { for repo in var.helm_repos : repo.name => repo }
+
+  repo = each.value.url
+  name = each.value.name
+  type = each.value.type
+
+  depends_on = [argocd_repository.main]
+}
+
 # --- ArgoCD project ---
 
 resource "argocd_project" "this" {
@@ -34,7 +46,7 @@ resource "argocd_project" "this" {
 
   spec {
     description       = var.project_description
-    source_repos      = [var.git_repo_url]
+    source_repos      = concat([var.git_repo_url], [for repo in var.helm_repos : repo.url])
     source_namespaces = [var.argocd_namespace]
 
     dynamic "destination" {
