@@ -144,7 +144,11 @@ opencost:
         memory: 256Mi
   cloudProvider: ""
   prometheus:
-    enabled: false
+    internal:
+      enabled: false
+    external:
+      enabled: true
+      url: "http://localhost:9090"
   ui:
     enabled: true
 EOT
