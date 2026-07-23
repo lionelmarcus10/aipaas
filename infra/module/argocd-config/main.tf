@@ -56,6 +56,12 @@ resource "argocd_project" "this" {
         namespace = destination.value
       }
     }
+
+    # Allow Namespace cluster-scoped resources (needed by Helm charts that create namespaces)
+    cluster_resource_whitelist {
+      group = ""
+      kind  = "Namespace"
+    }
   }
 }
 
