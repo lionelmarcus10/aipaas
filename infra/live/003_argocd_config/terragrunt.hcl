@@ -168,15 +168,19 @@ langfuse:
     requests:
       cpu: 100m
       memory: 256Mi
-  postgresql:
-    enabled: true
-    primary:
-      persistence:
-        size: 2Gi
-  nextauth:
-    secret: aipaas-langfuse-dev-secret-change-me
   salt:
-    secret: aipaas-langfuse-dev-salt-change-me
+    value: "aipaas-langfuse-dev-salt-change-me"
+  nextauth:
+    url: http://localhost:3000
+    secret:
+      value: "aipaas-langfuse-dev-secret-change-me"
+  encryptionKey:
+    value: "aipaas-langfuse-dev-encryption-key-change-me-64chars"
+postgresql:
+  deploy: true
+  primary:
+    persistence:
+      size: 2Gi
 service:
   type: ClusterIP
   port: 80
