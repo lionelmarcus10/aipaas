@@ -15,23 +15,48 @@ inputs = {
   argocd_username  = "admin"
   kubeconfig_path  = "~/.kube/config"
 
-  git_repo_url = "https://github.com/argoproj/argocd-example-apps.git"
-  git_branch   = "master"
+  git_repo_url = "https://github.com/lionelmarcus10/aipaas.git"
+  git_branch   = "main"
 
   project_name        = "aipaas"
   project_description = "AIPaaS platform — GitOps managed applications"
 
   target_namespaces = ["default", "aipaas", "agents"]
 
-  # Apps à synchroniser depuis Git (chemins dans le repo)
+  # App-of-Apps: chaque entrée = une Application ArgoCD qui pointe vers un sous-dossier de apps/
   apps = [
     {
-      name             = "guestbook"
-      path             = "guestbook"
+      name             = "test-nginx"
+      path             = "apps/test-nginx"
       target_namespace = "default"
       auto_sync        = true
       self_heal        = true
       prune            = true
     },
+    # Les apps suivantes seront activées dans les sprints ultérieurs
+    # {
+    #   name             = "vllm"
+    #   path             = "apps/vllm"
+    #   target_namespace = "aipaas"
+    #   auto_sync        = true
+    #   self_heal        = true
+    #   prune            = true
+    # },
+    # {
+    #   name             = "keda"
+    #   path             = "apps/keda"
+    #   target_namespace = "aipaas"
+    #   auto_sync        = true
+    #   self_heal        = true
+    #   prune            = true
+    # },
+    # {
+    #   name             = "observability"
+    #   path             = "apps/observability"
+    #   target_namespace = "aipaas"
+    #   auto_sync        = true
+    #   self_heal        = true
+    #   prune            = true
+    # },
   ]
 }
