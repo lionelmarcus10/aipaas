@@ -144,10 +144,7 @@ opencost:
         memory: 256Mi
   cloudProvider: ""
   prometheus:
-    enabled: true
-    internal:
-      enabled: true
-      address: http://prometheus-server.observability.svc.cluster.local:80
+    enabled: false
   ui:
     enabled: true
 EOT
@@ -175,7 +172,7 @@ langfuse:
     secret:
       value: "aipaas-langfuse-dev-secret-change-me"
   encryptionKey:
-    value: "aipaas-langfuse-dev-encryption-key-change-me-64chars"
+    value: "3fd0ee5378841cc1c1012cc9b125fa935b737d9b0be1a3062e46bdc6b7a5ebdb"
 postgresql:
   deploy: true
   auth:
