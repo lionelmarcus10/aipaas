@@ -16,7 +16,7 @@ inputs = {
   kubeconfig_path  = "~/.kube/config"
 
   git_repo_url = "https://github.com/lionelmarcus10/aipaas.git"
-  git_branch   = "main"
+  git_branch   = "master"
 
   project_name        = "aipaas"
   project_description = "AIPaaS platform — GitOps managed applications"
