@@ -34,6 +34,28 @@ variable "tags" {
   default     = {}
 }
 
+# --- NAT mode switch ---
+
+variable "enable_nat_instance" {
+  description = "Enable a NAT instance (Spot). Takes precedence over enable_nat_gateway"
+  type        = bool
+  default     = true
+}
+
+variable "enable_nat_gateway" {
+  description = "Enable a NAT Gateway (On-Demand). Only used when enable_nat_instance = false"
+  type        = bool
+  default     = false
+}
+
+variable "enable_private_route_table" {
+  description = "Add default route (0.0.0.0/0) via NAT in private route tables. Set to false for VPCs that use peering for Internet access"
+  type        = bool
+  default     = true
+}
+
+# --- NAT instance config ---
+
 variable "nat_instance_type" {
   description = "EC2 instance type for the NAT instance"
   type        = string
