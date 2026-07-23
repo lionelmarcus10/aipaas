@@ -183,6 +183,10 @@ postgresql:
   primary:
     persistence:
       size: 2Gi
+clickhouse:
+  deploy: true
+  auth:
+    password: "aipaas-langfuse-ch-dev"
 service:
   type: ClusterIP
   port: 80
