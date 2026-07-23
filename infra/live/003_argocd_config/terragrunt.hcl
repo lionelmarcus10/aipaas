@@ -21,7 +21,7 @@ inputs = {
   project_name        = "aipaas"
   project_description = "AIPaaS platform — GitOps managed applications"
 
-  target_namespaces = ["default", "aipaas", "agents", "keda-system", "argo-rollouts", "observability", "opencost"]
+  target_namespaces = ["default", "aipaas", "agents", "keda-system", "argo-rollouts", "observability", "opencost", "kube-system"]
 
   # Helm repositories for upstream charts
   helm_repos = [
