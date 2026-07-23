@@ -120,7 +120,7 @@ resource "argocd_application" "apps" {
         }
       }
 
-      sync_options = ["CreateNamespace=true"]
+      sync_options = ["CreateNamespace=true", "ServerSideApply=true"]
 
       retry {
         limit = "5"
